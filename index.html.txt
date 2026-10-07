@@ -34,53 +34,135 @@
         <div id="charts-container" class="space-y-6"></div>
     </div>
 
-    <script>
-        const indices = [
-            { title: '上证指数估值', value: 3800, pe: 13 },
-            { title: '创业板指数估值', value: 2400, pe: 35 },
-            { title: '沪深300估值', value: 4200, pe: 12 },
-            { title: '中证500估值', value: 5800, pe: 22 },
-            { title: '中证1000估值', value: 6200, pe: 28 }
+    <script type="module">
+        import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
+
+        // ========== 指数代码映射 ==========
+        const INDEX_CODES = [
+            { code: 'sh000001', title: '上证指数估值' },
+            { code: 'sz399006', title: '创业板指数估值' },
+            { code: 'sh000300', title: '沪深300估值' },
+            { code: 'sh000905', title: '中证500估值' },
+            { code: 'sh000852', title: '中证1000估值' }
         ];
 
-        function renderCharts() {
-            const container = document.getElementById('charts-container');
-            container.innerHTML = '';
-            indices.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'bg-white p-4 rounded shadow-sm border border-gray-100 mb-6';
-                div.innerHTML = `
-                    <div class="flex items-center gap-4 mb-4">
-                        <h3 class="font-bold text-gray-800 text-lg">${item.title}</h3>
-                        <span class="text-sm text-gray-500">当前值 <span class="font-semibold text-gray-700">${item.value}</span></span>
-                        <span class="text-sm text-gray-500">当前市盈率 <span class="font-semibold text-gray-700">${item.pe}</span></span>
-                    </div>
-                    <div id="chart-${index}" class="chart-container"></div>
-                `;
-                container.appendChild(div);
-                initChart(`chart-${index}`, item);
-            });
+        const TIME_DAYS = { '1': 365, '3': 1095, '5': 1825, '10': 3650 };
+
+        function getDateRange(days) {
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - days);
+            const fmt = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+            return { startDate: fmt(start), endDate: fmt(end) };
         }
 
-        function initChart(id, data) {
+        const sdk = new StockSDK();
+
+        async function renderCharts() {
+            const timeRange = document.getElementById('timeRange').value;
+            const days = TIME_DAYS[timeRange] || 1095;
+            const { startDate, endDate } = getDateRange(days);
+
+            const container = document.getElementById('charts-container');
+            container.innerHTML = '<div class="text-center text-gray-400 py-10">数据加载中...</div>';
+
+            try {
+                const codes = INDEX_CODES.map(i => i.code);
+                const quotes = await sdk.getSimpleQuotes(codes);
+                console.log('实时行情返回:', quotes);
+
+                container.innerHTML = '';
+
+                for (let i = 0; i < INDEX_CODES.length; i++) {
+                    const item = INDEX_CODES[i];
+                    const quote = quotes.find(q => q.code === item.code) || {};
+
+                    let klineData = [];
+                    try {
+                        klineData = await sdk.getHistoryKline(item.code, {
+                            period: 'daily',
+                            startDate: startDate,
+                            endDate: endDate
+                        });
+                        console.log(`${item.title} K线返回:`, klineData);
+                    } catch (e) {
+                        console.warn(`获取 ${item.title} K线失败:`, e);
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = 'bg-white p-4 rounded shadow-sm border border-gray-100 mb-6';
+                    div.innerHTML = `
+                        <div class="flex items-center gap-4 mb-4">
+                            <h3 class="font-bold text-gray-800 text-lg">${item.title}</h3>
+                            <span class="text-sm text-gray-500">当前值 
+                                <span class="font-semibold text-gray-700">${quote.price != null ? Number(quote.price).toFixed(2) : '--'}</span>
+                            </span>
+                            <span class="text-sm text-gray-500">当前市盈率 
+                                <span class="font-semibold text-gray-700">--</span>
+                            </span>
+                        </div>
+                        <div id="chart-${i}" class="chart-container"></div>
+                    `;
+                    container.appendChild(div);
+
+                    initChart(`chart-${i}`, klineData, quote);
+                }
+
+            } catch (err) {
+                console.error('数据加载失败:', err);
+                container.innerHTML = `
+                    <div class="text-center text-red-400 py-10">
+                        数据加载失败：${err.message}<br>
+                        <span class="text-sm text-gray-400">请打开 F12 控制台查看详情</span>
+                    </div>`;
+            }
+        }
+
+        function initChart(id, klineData, quote) {
             const chart = echarts.init(document.getElementById(id));
-            const dates = Array.from({length: 36}, (_, i) => `202${Math.floor(i/12)+3}-${(i%12)+1}`);
-            const indexData = dates.map((_, i) => data.value + Math.sin(i/3)*100 + Math.random()*50);
-            const peData = dates.map((_, i) => data.pe + Math.sin(i/4)*3 + Math.random()*2);
-            
+
+            if (!klineData || klineData.length === 0) {
+                chart.setOption({
+                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#ccc', fontSize: 14 } }
+                });
+                return;
+            }
+
+            const dates = klineData.map(k => k.date || k.day || '');
+            const closes = klineData.map(k => parseFloat(k.close || k.c || 0));
+
             chart.setOption({
-                tooltip: { trigger: 'axis' },
-                legend: { data: ['指数值', '市盈率'], bottom: 0 },
-                grid: { top: 10, right: 20, bottom: 30, left: 40 },
-                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10, color: '#999' } },
-                yAxis: [
-                    { type: 'value', name: '指数', axisLabel: { fontSize: 10 } },
-                    { type: 'value', name: 'PE', axisLabel: { fontSize: 10 } }
-                ],
-                series: [
-                    { name: '指数值', type: 'line', yAxisIndex: 0, data: indexData, smooth: true, symbol: 'none', lineStyle: { color: '#3b82f6', width: 2 } },
-                    { name: '市盈率', type: 'line', yAxisIndex: 1, data: peData, smooth: true, symbol: 'none', lineStyle: { color: '#f59e0b', width: 2 } }
-                ]
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function (params) {
+                        const p = params[0];
+                        return `${p.axisValue}<br/>收盘: <b>${p.value}</b>`;
+                    }
+                },
+                grid: { top: 20, right: 20, bottom: 40, left: 60 },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLabel: { fontSize: 10, color: '#999', interval: Math.floor(dates.length / 6) }
+                },
+                yAxis: {
+                    type: 'value',
+                    scale: true,
+                    axisLabel: { fontSize: 10, color: '#999' }
+                },
+                series: [{
+                    data: closes,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { color: '#2563eb', width: 2 },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(37,99,235,0.15)' },
+                            { offset: 1, color: 'rgba(37,99,235,0.02)' }
+                        ])
+                    }
+                }]
             });
         }
 
