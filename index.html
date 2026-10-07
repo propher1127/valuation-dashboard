@@ -34,8 +34,8 @@
         <div id="charts-container" class="space-y-6"></div>
     </div>
 
-    <script>
-        // 东方财富指数代码：1=沪市，0=深市
+    <!-- 注意这里加上了 type="module" -->
+    <script type="module">
         const INDEX_LIST = [
             { secid: '1.000001', title: '上证指数估值' },
             { secid: '0.399006', title: '创业板指数估值' },
@@ -59,19 +59,15 @@
             return { startDate: fmt(start), endDate: fmt(end) };
         }
 
-        // 获取实时行情（包含市盈率字段 f9, f115）
-        async function loadValuationData() {
-    const resp = await fetch('data/valuation.json');
-    const data = await resp.json();
-    return data;
-}
+        // 加载实时行情（价格）
+        async function fetchQuote(secid) {
+            const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f57,f58`;
+            const resp = await fetch(url);
+            const json = await resp.json();
+            return json.data || {};
+        }
 
-// 在 renderCharts 函数中调用
-const valuationData = await loadValuationData();
-// 然后从 valuationData 中获取对应指数的PE值
-const pe = valuationData[item.title]?.pe || '--';
-
-        // 获取K线数据
+        // 加载K线
         async function fetchKline(secid, startDate, endDate) {
             const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58&klt=101&fqt=1&beg=${startDate}&end=${endDate}`;
             const resp = await fetch(url);
@@ -83,6 +79,18 @@ const pe = valuationData[item.title]?.pe || '--';
             });
         }
 
+        // 从 Python 生成的 JSON 文件中读取真实的 PE 数据
+        async function loadValuationData() {
+            try {
+                const resp = await fetch('data/valuation.json');
+                if (!resp.ok) throw new Error('valuation.json 未生成');
+                return await resp.json();
+            } catch (e) {
+                console.warn('加载估值数据失败，将使用默认值:', e);
+                return {}; // 如果失败，返回空对象
+            }
+        }
+
         async function renderCharts() {
             const timeRange = document.getElementById('timeRange').value;
             const days = TIME_DAYS[timeRange] || 1095;
@@ -90,6 +98,9 @@ const pe = valuationData[item.title]?.pe || '--';
 
             const container = document.getElementById('charts-container');
             container.innerHTML = '<div class="text-center text-gray-400 py-10">数据加载中...</div>';
+
+            // 先加载估值 JSON 数据
+            const valuationData = await loadValuationData();
 
             try {
                 container.innerHTML = '';
@@ -99,21 +110,13 @@ const pe = valuationData[item.title]?.pe || '--';
                     let quote = {};
                     let klineData = [];
 
-                    try { quote = await fetchQuote(item.secid); } catch (e) { console.warn(`获取 ${item.title} 实时行情失败:`, e); }
-                    try { klineData = await fetchKline(item.secid, startDate, endDate); } catch (e) { console.warn(`获取 ${item.title} K线失败:`, e); }
+                    try { quote = await fetchQuote(item.secid); } catch (e) { console.warn(e); }
+                    try { klineData = await fetchKline(item.secid, startDate, endDate); } catch (e) { console.warn(e); }
 
-                    // 价格解析：东方财富通常返回的 f43 是乘以 100 的，需要除以 100
                     const price = quote.f43 != null ? (quote.f43 / 100).toFixed(2) : '--';
                     
-                    // 市盈率解析：优先使用 f115 (PE TTM)，其次 f9 (动态PE)，最后 f162
-                    let pe = '--';
-                    if (quote.f115 != null && quote.f115 !== 0 && quote.f115 !== '-') {
-                        pe = (quote.f115 / 100).toFixed(2);
-                    } else if (quote.f9 != null && quote.f9 !== 0 && quote.f9 !== '-') {
-                        pe = (quote.f9 / 100).toFixed(2);
-                    } else if (quote.f162 != null && quote.f162 !== 0 && quote.f162 !== '-') {
-                        pe = (quote.f162 / 100).toFixed(2);
-                    }
+                    // 从 JSON 数据中读取 PE，如果没有就显示 "--"
+                    const pe = valuationData[item.title]?.pe != null ? valuationData[item.title].pe.toFixed(2) : '--';
 
                     const div = document.createElement('div');
                     div.className = 'bg-white p-4 rounded shadow-sm border border-gray-100 mb-6';
