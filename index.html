@@ -33,7 +33,6 @@
     </div>
 
     <script>
-        // 东方财富指数代码：1=沪市，0=深市
         const INDEX_LIST = [
             { secid: '1.000001', title: '上证指数估值' },
             { secid: '0.399006', title: '创业板指数估值' },
@@ -57,7 +56,6 @@
             return { startDate: fmt(start), endDate: fmt(end) };
         }
 
-        // 获取实时行情
         async function fetchQuote(secid) {
             const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f57,f58,f60,f162,f169,f170`;
             const resp = await fetch(url);
@@ -65,7 +63,6 @@
             return json.data || {};
         }
 
-        // 获取K线数据
         async function fetchKline(secid, startDate, endDate) {
             const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58&klt=101&fqt=1&beg=${startDate}&end=${endDate}`;
             const resp = await fetch(url);
@@ -90,21 +87,11 @@
 
                 for (let i = 0; i < INDEX_LIST.length; i++) {
                     const item = INDEX_LIST[i];
-
                     let quote = {};
                     let klineData = [];
 
-                    try {
-                        quote = await fetchQuote(item.secid);
-                    } catch (e) {
-                        console.warn(`获取 ${item.title} 实时行情失败:`, e);
-                    }
-
-                    try {
-                        klineData = await fetchKline(item.secid, startDate, endDate);
-                    } catch (e) {
-                        console.warn(`获取 ${item.title} K线失败:`, e);
-                    }
+                    try { quote = await fetchQuote(item.secid); } catch (e) { console.warn(e); }
+                    try { klineData = await fetchKline(item.secid, startDate, endDate); } catch (e) { console.warn(e); }
 
                     const price = quote.f43 != null ? (quote.f43 / 100).toFixed(2) : '--';
                     const pe = quote.f162 != null ? (quote.f162 / 100).toFixed(2) : '--';
@@ -114,67 +101,39 @@
                     div.innerHTML = `
                         <div class="flex items-center gap-4 mb-4">
                             <h3 class="font-bold text-gray-800 text-lg">${item.title}</h3>
-                            <span class="text-sm text-gray-500">当前值 
-                                <span class="font-semibold text-gray-700">${price}</span>
-                            </span>
-                            <span class="text-sm text-gray-500">当前市盈率 
-                                <span class="font-semibold text-gray-700">${pe}</span>
-                            </span>
+                            <span class="text-sm text-gray-500">当前值 <span class="font-semibold text-gray-700">${price}</span></span>
+                            <span class="text-sm text-gray-500">当前市盈率 <span class="font-semibold text-gray-700">${pe}</span></span>
                         </div>
                         <div id="chart-${i}" class="chart-container"></div>
                     `;
                     container.appendChild(div);
-
                     initChart(`chart-${i}`, klineData);
                 }
             } catch (err) {
-                console.error('数据加载失败:', err);
-                container.innerHTML = `
-                    <div class="text-center text-red-400 py-10">
-                        数据加载失败：${err.message}<br>
-                        <span class="text-sm text-gray-400">请打开 F12 控制台查看详情</span>
-                    </div>`;
+                console.error(err);
+                container.innerHTML = `<div class="text-center text-red-400 py-10">数据加载失败：${err.message}</div>`;
             }
         }
 
         function initChart(id, klineData) {
             const chart = echarts.init(document.getElementById(id));
-
             if (!klineData || klineData.length === 0) {
-                chart.setOption({
-                    title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#ccc', fontSize: 14 } }
-                });
+                chart.setOption({ title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#ccc', fontSize: 14 } } });
                 return;
             }
-
             const dates = klineData.map(k => k.date);
             const closes = klineData.map(k => parseFloat(k.close));
-
             chart.setOption({
                 tooltip: { trigger: 'axis' },
                 grid: { top: 20, right: 20, bottom: 40, left: 60 },
-                xAxis: {
-                    type: 'category',
-                    data: dates,
-                    axisLabel: { fontSize: 10, color: '#999', interval: Math.floor(dates.length / 6) }
-                },
-                yAxis: {
-                    type: 'value',
-                    scale: true,
-                    axisLabel: { fontSize: 10, color: '#999' }
-                },
+                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10, color: '#999', interval: Math.floor(dates.length / 6) } },
+                yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10, color: '#999' } },
                 series: [{
-                    data: closes,
-                    type: 'line',
-                    smooth: true,
-                    symbol: 'none',
-                    lineStyle: { color: '#2563eb', width: 2 },
-                    areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(37,99,235,0.15)' },
-                            { offset: 1, color: 'rgba(37,99,235,0.02)' }
-                        ])
-                    }
+                    data: closes, type: 'line', smooth: true, symbol: 'none', lineStyle: { color: '#2563eb', width: 2 },
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(37,99,235,0.15)' },
+                        { offset: 1, color: 'rgba(37,99,235,0.02)' }
+                    ])}
                 }]
             });
         }
