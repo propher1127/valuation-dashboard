@@ -60,14 +60,16 @@
         }
 
         // 获取实时行情（包含市盈率字段 f9, f115）
-        async function fetchQuote(secid) {
-            // 使用 push2delay 或 push2 接口，加入 f9 (动态PE) 和 f115 (PE TTM)
-            const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f57,f58,f60,f162,f169,f170,f9,f115`;
-            const resp = await fetch(url);
-            const json = await resp.json();
-            console.log(`[${secid}] 行情返回:`, json.data);
-            return json.data || {};
-        }
+        async function loadValuationData() {
+    const resp = await fetch('data/valuation.json');
+    const data = await resp.json();
+    return data;
+}
+
+// 在 renderCharts 函数中调用
+const valuationData = await loadValuationData();
+// 然后从 valuationData 中获取对应指数的PE值
+const pe = valuationData[item.title]?.pe || '--';
 
         // 获取K线数据
         async function fetchKline(secid, startDate, endDate) {
