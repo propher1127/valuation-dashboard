@@ -32,7 +32,6 @@
         <div id="charts-container" class="space-y-6"></div>
     </div>
 
-<<<<<<< HEAD
     <script>
         // 东方财富指数代码：1=沪市，0=深市
         const INDEX_LIST = [
@@ -42,23 +41,9 @@
             { secid: '1.000905', title: '中证500估值' },
             { secid: '1.000852', title: '中证1000估值' }
         ];
-=======
-    <script type="module">
-    import { StockSDK } from 'https://unpkg.com/stock-sdk/dist/index.js';
 
-    // ========== 指数代码映射 ==========
-    const INDEX_CODES = [
-        { code: 'sh000001', title: '上证指数估值' },
-        { code: 'sz399006', title: '创业板指数估值' },
-        { code: 'sh000300', title: '沪深300估值' },
-        { code: 'sh000905', title: '中证500估值' },
-        { code: 'sh000852', title: '中证1000估值' }
-    ];
->>>>>>> c9141d931a5baffa1de585cea05d96c0e752f790
+        const TIME_DAYS = { '1': 365, '3': 1095, '5': 1825, '10': 3650 };
 
-    const TIME_DAYS = { '1': 365, '3': 1095, '5': 1825, '10': 3650 };
-
-<<<<<<< HEAD
         function getDateRange(days) {
             const end = new Date();
             const start = new Date();
@@ -91,27 +76,15 @@
                 return { date: parts[0], close: parts[2] };
             });
         }
-=======
-    function getDateRange(days) {
-        const end = new Date();
-        const start = new Date();
-        start.setDate(end.getDate() - days);
-        const fmt = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
-        return { startDate: fmt(start), endDate: fmt(end) };
-    }
 
-    const sdk = new StockSDK();
->>>>>>> c9141d931a5baffa1de585cea05d96c0e752f790
+        async function renderCharts() {
+            const timeRange = document.getElementById('timeRange').value;
+            const days = TIME_DAYS[timeRange] || 1095;
+            const { startDate, endDate } = getDateRange(days);
 
-    async function renderCharts() {
-        const timeRange = document.getElementById('timeRange').value;
-        const days = TIME_DAYS[timeRange] || 1095;
-        const { startDate, endDate } = getDateRange(days);
+            const container = document.getElementById('charts-container');
+            container.innerHTML = '<div class="text-center text-gray-400 py-10">数据加载中...</div>';
 
-        const container = document.getElementById('charts-container');
-        container.innerHTML = '<div class="text-center text-gray-400 py-10">数据加载中...</div>';
-
-<<<<<<< HEAD
             try {
                 container.innerHTML = '';
 
@@ -161,63 +134,9 @@
                         数据加载失败：${err.message}<br>
                         <span class="text-sm text-gray-400">请打开 F12 控制台查看详情</span>
                     </div>`;
-=======
-        try {
-            const codes = INDEX_CODES.map(i => i.code);
-            // ✅ v2 命名空间写法：sdk.quotes.cn()
-            const quotes = await sdk.quotes.cn(codes);
-            console.log('实时行情返回:', quotes);
-
-            container.innerHTML = '';
-
-            for (let i = 0; i < INDEX_CODES.length; i++) {
-                const item = INDEX_CODES[i];
-                const quote = quotes.find(q => q.code === item.code) || {};
-
-                let klineData = [];
-                try {
-                    // ✅ v2 命名空间写法：sdk.kline.cn()
-                    klineData = await sdk.kline.cn(item.code, {
-                        period: 'daily',
-                        startDate: startDate,
-                        endDate: endDate
-                    });
-                    console.log(`${item.title} K线返回:`, klineData);
-                } catch (e) {
-                    console.warn(`获取 ${item.title} K线失败:`, e);
-                }
-
-                const div = document.createElement('div');
-                div.className = 'bg-white p-4 rounded shadow-sm border border-gray-100 mb-6';
-                div.innerHTML = `
-                    <div class="flex items-center gap-4 mb-4">
-                        <h3 class="font-bold text-gray-800 text-lg">${item.title}</h3>
-                        <span class="text-sm text-gray-500">当前值 
-                            <span class="font-semibold text-gray-700">${quote.price != null ? Number(quote.price).toFixed(2) : '--'}</span>
-                        </span>
-                        <span class="text-sm text-gray-500">当前市盈率 
-                            <span class="font-semibold text-gray-700">--</span>
-                        </span>
-                    </div>
-                    <div id="chart-${i}" class="chart-container"></div>
-                `;
-                container.appendChild(div);
-
-                initChart(`chart-${i}`, klineData, quote);
->>>>>>> c9141d931a5baffa1de585cea05d96c0e752f790
             }
-
-        } catch (err) {
-            console.error('数据加载失败:', err);
-            container.innerHTML = `
-                <div class="text-center text-red-400 py-10">
-                    数据加载失败：${err.message}<br>
-                    <span class="text-sm text-gray-400">请打开 F12 控制台查看详情</span>
-                </div>`;
         }
-    }
 
-<<<<<<< HEAD
         function initChart(id, klineData) {
             const chart = echarts.init(document.getElementById(id));
 
@@ -230,14 +149,8 @@
 
             const dates = klineData.map(k => k.date);
             const closes = klineData.map(k => parseFloat(k.close));
-=======
-    function initChart(id, klineData, quote) {
-        const chart = echarts.init(document.getElementById(id));
->>>>>>> c9141d931a5baffa1de585cea05d96c0e752f790
 
-        if (!klineData || klineData.length === 0) {
             chart.setOption({
-<<<<<<< HEAD
                 tooltip: { trigger: 'axis' },
                 grid: { top: 20, right: 20, bottom: 40, left: 60 },
                 xAxis: {
@@ -263,59 +176,11 @@
                         ])
                     }
                 }]
-=======
-                title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#ccc', fontSize: 14 } }
->>>>>>> c9141d931a5baffa1de585cea05d96c0e752f790
             });
-            return;
         }
 
-<<<<<<< HEAD
         document.getElementById('timeRange').addEventListener('change', renderCharts);
         renderCharts();
     </script>
 </body>
 </html>
-=======
-        const dates = klineData.map(k => k.date || k.day || '');
-        const closes = klineData.map(k => parseFloat(k.close || k.c || 0));
-
-        chart.setOption({
-            tooltip: {
-                trigger: 'axis',
-                formatter: function (params) {
-                    const p = params[0];
-                    return `${p.axisValue}<br/>收盘: <b>${p.value}</b>`;
-                }
-            },
-            grid: { top: 20, right: 20, bottom: 40, left: 60 },
-            xAxis: {
-                type: 'category',
-                data: dates,
-                axisLabel: { fontSize: 10, color: '#999', interval: Math.floor(dates.length / 6) }
-            },
-            yAxis: {
-                type: 'value',
-                scale: true,
-                axisLabel: { fontSize: 10, color: '#999' }
-            },
-            series: [{
-                data: closes,
-                type: 'line',
-                smooth: true,
-                symbol: 'none',
-                lineStyle: { color: '#2563eb', width: 2 },
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(37,99,235,0.15)' },
-                        { offset: 1, color: 'rgba(37,99,235,0.02)' }
-                    ])
-                }
-            }]
-        });
-    }
-
-    document.getElementById('timeRange').addEventListener('change', renderCharts);
-    renderCharts();
-</script>
->>>>>>> c9141d931a5baffa1de585cea05d96c0e752f790
