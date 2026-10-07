@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大盘估值</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #f9fafb; }
+        .chart-container { height: 250px; width: 100%; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+    <!-- 左侧导航 -->
+    <div class="w-48 bg-white border-r border-gray-200 flex flex-col pt-4 shrink-0">
+        <nav class="flex-1">
+            <a href="index.html" class="block px-4 py-3 text-sm font-medium bg-blue-500 text-white">大盘估值</a>
+            <a href="industry.html" class="block px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100">行业估值</a>
+        </nav>
+    </div>
+
+    <!-- 右侧主内容 -->
+    <div class="flex-1 p-8 overflow-y-auto">
+        <div class="mb-8">
+            <label class="text-sm text-gray-600 mr-2">选择时间</label>
+            <select id="timeRange" class="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500">
+                <option value="1">近1年</option>
+                <option value="3" selected>近3年</option>
+                <option value="5">近5年</option>
+                <option value="10">近10年</option>
+            </select>
+        </div>
+        <div id="charts-container" class="space-y-6"></div>
+    </div>
+
+    <script>
+        const indices = [
+            { title: '上证指数估值', value: 3800, pe: 13 },
+            { title: '创业板指数估值', value: 2400, pe: 35 },
+            { title: '沪深300估值', value: 4200, pe: 12 },
+            { title: '中证500估值', value: 5800, pe: 22 },
+            { title: '中证1000估值', value: 6200, pe: 28 }
+        ];
+
+        function renderCharts() {
+            const container = document.getElementById('charts-container');
+            container.innerHTML = '';
+            indices.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-4 rounded shadow-sm border border-gray-100 mb-6';
+                div.innerHTML = `
+                    <div class="flex items-center gap-4 mb-4">
+                        <h3 class="font-bold text-gray-800 text-lg">${item.title}</h3>
+                        <span class="text-sm text-gray-500">当前值 <span class="font-semibold text-gray-700">${item.value}</span></span>
+                        <span class="text-sm text-gray-500">当前市盈率 <span class="font-semibold text-gray-700">${item.pe}</span></span>
+                    </div>
+                    <div id="chart-${index}" class="chart-container"></div>
+                `;
+                container.appendChild(div);
+                initChart(`chart-${index}`, item);
+            });
+        }
+
+        function initChart(id, data) {
+            const chart = echarts.init(document.getElementById(id));
+            const dates = Array.from({length: 36}, (_, i) => `202${Math.floor(i/12)+3}-${(i%12)+1}`);
+            const indexData = dates.map((_, i) => data.value + Math.sin(i/3)*100 + Math.random()*50);
+            const peData = dates.map((_, i) => data.pe + Math.sin(i/4)*3 + Math.random()*2);
+            
+            chart.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { data: ['指数值', '市盈率'], bottom: 0 },
+                grid: { top: 10, right: 20, bottom: 30, left: 40 },
+                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10, color: '#999' } },
+                yAxis: [
+                    { type: 'value', name: '指数', axisLabel: { fontSize: 10 } },
+                    { type: 'value', name: 'PE', axisLabel: { fontSize: 10 } }
+                ],
+                series: [
+                    { name: '指数值', type: 'line', yAxisIndex: 0, data: indexData, smooth: true, symbol: 'none', lineStyle: { color: '#3b82f6', width: 2 } },
+                    { name: '市盈率', type: 'line', yAxisIndex: 1, data: peData, smooth: true, symbol: 'none', lineStyle: { color: '#f59e0b', width: 2 } }
+                ]
+            });
+        }
+
+        document.getElementById('timeRange').addEventListener('change', renderCharts);
+        renderCharts();
+    </script>
+</body>
+</html>
